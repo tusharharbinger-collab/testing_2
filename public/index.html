@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Production-ready containerized To-Do List application with CI/CD chaos testing hooks and ALB health monitoring." />
+  <title>CloudOps Tasks - Containerized To-Do App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  
+  <style>
+    :root {
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      
+      /* Dark Theme (Default) */
+      --bg-base: #0a0e17;
+      --bg-surface: #111827;
+      --bg-surface-elevated: #1a2234;
+      --bg-card: rgba(26, 34, 52, 0.7);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.16);
+      
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-subtle: #6b7280;
+      
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-glow: rgba(99, 102, 241, 0.25);
+      
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.2);
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --warning: #f59e0b;
+      
+      --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+      --shadow-glow: 0 0 40px -10px var(--accent-glow);
+    }
+
+    [data-theme="light"] {
+      --bg-base: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-surface-elevated: #f1f5f9;
+      --bg-card: rgba(255, 255, 255, 0.85);
+      --border-color: rgba(0, 0, 0, 0.08);
+      --border-hover: rgba(0, 0, 0, 0.16);
+      
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-subtle: #94a3b8;
+      
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --accent-glow: rgba(79, 70, 229, 0.15);
+      
+      --shadow-lg: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+      --shadow-glow: 0 0 35px -5px rgba(79, 70, 229, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 3rem;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Background Glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 450px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 680px;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Header & Nav */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 0.5rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.25rem;
+      box-shadow: 0 4px 12px var(--accent-glow);
+    }
+
+    .brand-text h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 20px;
+      background-color: rgba(16, 185, 129, 0.12);
+      color: var(--success);
+      font-weight: 600;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .icon-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      cursor: pointer;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .icon-btn:hover {
+      border-color: var(--border-hover);
+      color: var(--text-main);
+      transform: translateY(-1px);
+    }
+
+    /* System Status Bar (Health & Chaos Info) */
+    .status-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 0.85rem 1.15rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-size: 0.82rem;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    .status-dot.active-chaos {
+      background-color: var(--warning);
+      box-shadow: 0 0 8px var(--warning);
+    }
+
+    .chaos-selector {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      padding: 0.25rem 0.5rem;
+      border-radius: 8px;
+    }
+
+    .chaos-select {
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Input Card */
+    .input-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 0.6rem 0.6rem 0.6rem 1.15rem;
+      box-shadow: var(--shadow-lg), var(--shadow-glow);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .input-card:focus-within {
+      border-color: var(--accent);
+    }
+
+    .todo-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      font-family: var(--font-sans);
+      font-size: 1rem;
+      color: var(--text-main);
+      outline: none;
+    }
+
+    .todo-input::placeholder {
+      color: var(--text-subtle);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.7rem 1.35rem;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 0.92rem;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    /* Filters Bar */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0 0.25rem;
+    }
+
+    .filter-group {
+      display: flex;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 3px;
+      gap: 3px;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.35rem 0.85rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+
+    .filter-btn.active {
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .stats-text {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Todo List */
+    .todo-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      list-style: none;
+    }
+
+    .todo-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 0.9rem 1.15rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      animation: fadeIn 0.2s ease forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .todo-item:hover {
+      border-color: var(--border-hover);
+      background: var(--bg-surface-elevated);
+    }
+
+    .custom-checkbox {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      border: 2px solid var(--border-hover);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+
+    .todo-item.completed .custom-checkbox {
+      background: var(--success);
+      border-color: var(--success);
+      box-shadow: 0 0 10px var(--success-glow);
+    }
+
+    .custom-checkbox svg {
+      fill: none;
+      stroke: #fff;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      width: 13px;
+      height: 13px;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.15s ease;
+    }
+
+    .todo-item.completed .custom-checkbox svg {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .todo-content {
+      flex: 1;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      cursor: pointer;
+      user-select: none;
+      word-break: break-word;
+    }
+
+    .todo-item.completed .todo-content {
+      color: var(--text-subtle);
+      text-decoration: line-through;
+    }
+
+    .delete-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-subtle);
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: all 0.15s ease;
+    }
+
+    .todo-item:hover .delete-btn {
+      opacity: 1;
+    }
+
+    .delete-btn:hover {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--danger);
+    }
+
+    /* Notification Banner */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-lg);
+      padding: 0.75rem 1.25rem;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .toast.error {
+      border-color: var(--danger);
+      color: #fca5a5;
+    }
+
+    .toast.success {
+      border-color: var(--success);
+      color: #86efac;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3.5rem 1rem;
+      color: var(--text-subtle);
+    }
+
+    .empty-state-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">✓</div>
+        <div class="brand-text">
+          <h1>CloudOps Tasks</h1>
+        </div>
+        <span class="brand-badge" id="health-badge">ALB: 200 OK</span>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="theme-toggle" title="Toggle Theme" aria-label="Toggle Theme">
+          <span id="theme-icon">☀️</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Operational / Chaos Status -->
+    <section class="status-card" aria-label="Operational Status">
+      <div class="status-item">
+        <span class="status-dot" id="system-dot"></span>
+        <span id="system-status">ALB Probe: Healthy (&lt;5ms)</span>
+      </div>
+      <div class="status-item">
+        <label for="chaos-mode" style="color: var(--text-muted);">Chaos Mode:</label>
+        <div class="chaos-selector">
+          <select id="chaos-mode" class="chaos-select" aria-label="Simulate Chaos Hook">
+            <option value="none">None (Clean &lt;20ms)</option>
+            <option value="latency">Latency (+300ms Delay)</option>
+            <option value="error">Error Spike (20% HTTP 500)</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Add To-do Input -->
+    <form id="todo-form" class="input-card">
+      <input 
+        type="text" 
+        id="todo-input" 
+        class="todo-input" 
+        placeholder="Add a new task (e.g., 'Verify health check endpoint')..." 
+        autocomplete="off" 
+        required 
+      />
+      <button type="submit" class="btn-primary" id="add-btn">
+        <span>Add Task</span>
+      </button>
+    </form>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="active">Active</button>
+        <button class="filter-btn" data-filter="completed">Done</button>
+      </div>
+      <div class="stats-text" id="stats-counter">0 items left</div>
+    </div>
+
+    <!-- Todo List -->
+    <ul class="todo-list" id="todo-list" aria-live="polite"></ul>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="empty-state" style="display: none;">
+      <div class="empty-state-icon">📋</div>
+      <p>No tasks found in this view. Ready for work!</p>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast" role="status"></div>
+
+  <script>
+    // App State
+    let todos = [];
+    let currentFilter = 'all';
+    let chaosMode = 'none';
+
+    // DOM Elements
+    const todoList = document.getElementById('todo-list');
+    const todoForm = document.getElementById('todo-form');
+    const todoInput = document.getElementById('todo-input');
+    const statsCounter = document.getElementById('stats-counter');
+    const emptyState = document.getElementById('empty-state');
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const chaosSelect = document.getElementById('chaos-mode');
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    const toast = document.getElementById('toast');
+    const systemDot = document.getElementById('system-dot');
+    const systemStatus = document.getElementById('system-status');
+
+    // Notification Helper
+    function showToast(message, type = 'normal') {
+      toast.textContent = message;
+      toast.className = `toast show ${type}`;
+      setTimeout(() => {
+        toast.className = 'toast';
+      }, 3200);
+    }
+
+    // Build API URL with Chaos Query Parameter if enabled
+    function getApiUrl(path) {
+      if (chaosMode && chaosMode !== 'none') {
+        const separator = path.includes('?') ? '&' : '?';
+        return `${path}${separator}chaos=${chaosMode}`;
+      }
+      return path;
+    }
+
+    // Load Todos from Backend
+    async function fetchTodos() {
+      const startTime = performance.now();
+      try {
+        const res = await fetch(getApiUrl('/api/todos'));
+        const elapsed = Math.round(performance.now() - startTime);
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ error: 'Server Error' }));
+          throw new Error(errData.error || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        todos = data.data || [];
+        render();
+
+        if (chaosMode === 'latency') {
+          showToast(`Request latency: ${elapsed}ms (Regression simulated)`, 'normal');
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Add New Todo
+    async function addTodo(title) {
+      const startTime = performance.now();
+      try {
+        const res = await fetch(getApiUrl('/api/todos'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title })
+        });
+        const elapsed = Math.round(performance.now() - startTime);
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ error: 'Failed to add task' }));
+          throw new Error(errData.error || `HTTP ${res.status}`);
+        }
+
+        const newTodo = await res.json();
+        todos.unshift(newTodo);
+        render();
+        todoInput.value = '';
+        showToast(`Task added in ${elapsed}ms`, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Toggle Todo Complete
+    async function toggleTodo(id) {
+      const target = todos.find(t => t.id === id);
+      if (!target) return;
+      const originalState = target.completed;
+      target.completed = !target.completed;
+      render();
+
+      try {
+        const res = await fetch(getApiUrl(`/api/todos/${id}`), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ completed: target.completed })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ error: 'Update failed' }));
+          throw new Error(errData.error || `HTTP ${res.status}`);
+        }
+      } catch (err) {
+        // Rollback state on error
+        target.completed = originalState;
+        render();
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Delete Todo
+    async function deleteTodo(id) {
+      const originalTodos = [...todos];
+      todos = todos.filter(t => t.id !== id);
+      render();
+
+      try {
+        const res = await fetch(getApiUrl(`/api/todos/${id}`), {
+          method: 'DELETE'
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ error: 'Delete failed' }));
+          throw new Error(errData.error || `HTTP ${res.status}`);
+        }
+        showToast('Task removed', 'normal');
+      } catch (err) {
+        todos = originalTodos;
+        render();
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Render Function
+    function render() {
+      const filtered = todos.filter(t => {
+        if (currentFilter === 'active') return !t.completed;
+        if (currentFilter === 'completed') return t.completed;
+        return true;
+      });
+
+      todoList.innerHTML = '';
+
+      if (filtered.length === 0) {
+        emptyState.style.display = 'block';
+      } else {
+        emptyState.style.display = 'none';
+        filtered.forEach(todo => {
+          const li = document.createElement('li');
+          li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
+          li.id = `todo-${todo.id}`;
+
+          li.innerHTML = `
+            <div class="custom-checkbox" aria-label="Toggle task">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <span class="todo-content">${escapeHtml(todo.title)}</span>
+            <button class="delete-btn" title="Delete task" aria-label="Delete task">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          `;
+
+          // Events
+          li.querySelector('.custom-checkbox').addEventListener('click', () => toggleTodo(todo.id));
+          li.querySelector('.todo-content').addEventListener('click', () => toggleTodo(todo.id));
+          li.querySelector('.delete-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteTodo(todo.id);
+          });
+
+          todoList.appendChild(li);
+        });
+      }
+
+      // Update counters
+      const activeCount = todos.filter(t => !t.completed).length;
+      statsCounter.textContent = `${activeCount} item${activeCount === 1 ? '' : 's'} left`;
+    }
+
+    // Sanitize user inputs
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // Ping /health probe
+    async function checkALBHealth() {
+      const t0 = performance.now();
+      try {
+        const res = await fetch('/health');
+        const elapsed = Math.round(performance.now() - t0);
+        if (res.ok) {
+          systemStatus.textContent = `ALB Probe: Healthy (${elapsed}ms)`;
+        }
+      } catch (e) {
+        systemStatus.textContent = `ALB Probe: Error`;
+      }
+    }
+
+    // Event Listeners
+    todoForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = todoInput.value.trim();
+      if (title) addTodo(title);
+    });
+
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        render();
+      });
+    });
+
+    chaosSelect.addEventListener('change', (e) => {
+      chaosMode = e.target.value;
+      if (chaosMode !== 'none') {
+        systemDot.className = 'status-dot active-chaos';
+        showToast(`Simulating Chaos: ${chaosMode.toUpperCase()}`, 'normal');
+      } else {
+        systemDot.className = 'status-dot';
+        showToast('Chaos simulation disabled', 'normal');
+      }
+    });
+
+    // Theme Toggle
+    themeToggle.addEventListener('click', () => {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      const newTheme = isDark ? 'light' : 'dark';
+      html.setAttribute('data-theme', newTheme);
+      themeIcon.textContent = isDark ? '🌙' : '☀️';
+      localStorage.setItem('theme', newTheme);
+    });
+
+    // Restore saved theme
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      themeIcon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+    }
+
+    // Initialize
+    fetchTodos();
+    checkALBHealth();
+    setInterval(checkALBHealth, 10000);
+  </script>
+</body>
+</html>

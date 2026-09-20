@@ -1,0 +1,22 @@
+{
+  "name": "testing_2",
+  "version": "1.0.0",
+  "description": "Lightweight, production-ready Full-Stack To-Do List application for containerized deployment in CI/CD platforms",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "keywords": [
+    "todo",
+    "express",
+    "docker",
+    "chaos-testing",
+    "ci-cd"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
