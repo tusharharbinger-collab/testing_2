@@ -17,6 +17,17 @@ let todos = [
 // JSON body parser
 app.use(express.json());
 
+// Strip PATH_PREFIX when running behind ALB path-based routing (e.g. /api/v1/testing-2)
+const pathPrefix = (process.env.PATH_PREFIX || '').replace(/\/+$/, '');
+if (pathPrefix) {
+  app.use((req, res, next) => {
+    if (req.url.startsWith(pathPrefix)) {
+      req.url = req.url.slice(pathPrefix.length) || '/';
+    }
+    next();
+  });
+}
+
 // --- Health Check Endpoints (Crucial: Immediate response for AWS ALB / K8s probes) ---
 const handleHealthCheck = (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -144,6 +155,11 @@ app.get('/', (req, res) => {
 // 404 handler for API routes
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
+});
+
+// Fallback for any other route to index.html (SPA support)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Start Server

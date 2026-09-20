@@ -580,13 +580,19 @@
       }, 3200);
     }
 
-    // Build API URL with Chaos Query Parameter if enabled
+    // Build API URL with Chaos Query Parameter if enabled, respecting subpath prefix
+    const basePath = window.location.pathname.endsWith('/')
+      ? window.location.pathname.slice(0, -1)
+      : window.location.pathname;
+
     function getApiUrl(path) {
+      const cleanPath = path.startsWith('/') ? path : `/${path}`;
+      const fullPath = `${basePath}${cleanPath}`;
       if (chaosMode && chaosMode !== 'none') {
-        const separator = path.includes('?') ? '&' : '?';
-        return `${path}${separator}chaos=${chaosMode}`;
+        const separator = fullPath.includes('?') ? '&' : '?';
+        return `${fullPath}${separator}chaos=${chaosMode}`;
       }
-      return path;
+      return fullPath;
     }
 
     // Load Todos from Backend
@@ -749,7 +755,7 @@
     async function checkALBHealth() {
       const t0 = performance.now();
       try {
-        const res = await fetch('/health');
+        const res = await fetch(`${basePath}/health`);
         const elapsed = Math.round(performance.now() - t0);
         if (res.ok) {
           systemStatus.textContent = `ALB Probe: Healthy (${elapsed}ms)`;
